@@ -24,7 +24,6 @@ THE SOFTWARE.
 ****************************************************************************/
 package com.cocos.game;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.content.Intent;
 import android.content.res.Configuration;
@@ -56,7 +55,7 @@ public class AppActivity extends CocosActivity {
     // Fill the channel name.
     private String channelName = "Testing Agora";
     // Fill the temp token generated on Agora Console.
-    private String token = "007eJxTYBD8+rT5fqFB0okdvk2nF1Y/2FattnVdWm6Jp1p71sU/B18rMJgYJCUZGKUlGpmYG5gYmyUnmiabWRqlmKVYpFhYmqSZ216qSmkIZGRo5vJjYmSAQBCflyEktbgkMy9dwTE9vyiRgQEASPUkfA==";
+    private String token = "007eJxTYJh5mdO2+7LD2/hve/fL7fqrMjN1ZVrSh4/Wesobi/uurFunwGBikJRkYJSWaGRibmBibJacaJpsZmmUYpZikWJhaZJmvvdRbUpDICPD3qBKZkYGCATxeRlCUotLMvPSFRzT84sSGRgATPQlQg==";
     // An integer that identifies the local user.
     private int uid = 0;
     private boolean isJoined = false;
@@ -119,28 +118,66 @@ public class AppActivity extends CocosActivity {
             showMessage("Remote user offline " + uid + " " + reason);
         }
     };
+    private void setupLocalVideo() {
+        FrameLayout container = new FrameLayout(getBaseContext());
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        container.setLayoutParams(layoutParams);
+
+        // Create a SurfaceView object for local video.
+        localSurfaceView = new SurfaceView(getBaseContext());
+
+        // Calculate the desired size and position for the localSurfaceView.
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        int desiredWidth = screenWidth; // Half the screen width
+        int desiredHeight = screenHeight/ 2;
+        int desiredX = 0;
+        int desiredY = 0;
+
+        FrameLayout.LayoutParams surfaceParams = new FrameLayout.LayoutParams(desiredWidth, desiredHeight);
+        surfaceParams.setMargins(desiredX, desiredY, 0, 0); // Adjust margins as needed
+        localSurfaceView.setLayoutParams(surfaceParams);
+
+        container.addView(localSurfaceView);
+
+        setContentView(container);
+
+        agoraEngine.setupLocalVideo(new VideoCanvas(localSurfaceView, VideoCanvas.RENDER_MODE_HIDDEN, 0));
+    }
 
     private void setupRemoteVideo(int uid) {
-//        FrameLayout container = findViewById(R.id.remote_video_view_container);
+        FrameLayout container = new FrameLayout(getBaseContext());
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        container.setLayoutParams(layoutParams);
+
+        // Create a SurfaceView object for remote video.
         remoteSurfaceView = new SurfaceView(getBaseContext());
-        remoteSurfaceView.setZOrderMediaOverlay(true);
-//        container.addView(remoteSurfaceView);
-        agoraEngine.setupRemoteVideo(new VideoCanvas(remoteSurfaceView, VideoCanvas.RENDER_MODE_FIT, uid));
+
+        // Calculate the desired size and position for the remoteSurfaceView.
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int screenHeight = getResources().getDisplayMetrics().heightPixels;
+        int desiredWidth = screenWidth; // Half the screen width
+        int desiredHeight = screenHeight / 2;
+        int desiredX = 0; // Position the remoteSurfaceView to the right half of the screen
+        int desiredY = screenHeight / 2;
+
+        FrameLayout.LayoutParams surfaceParams = new FrameLayout.LayoutParams(desiredWidth, desiredHeight);
+        surfaceParams.setMargins(desiredX, desiredY, 0, 0); // Adjust margins as needed
+        remoteSurfaceView.setLayoutParams(surfaceParams);
+
+        container.addView(remoteSurfaceView);
+
+        setContentView(container);
+
+        agoraEngine.setupRemoteVideo(new VideoCanvas(remoteSurfaceView, VideoCanvas.RENDER_MODE_HIDDEN, uid));
         // Display RemoteSurfaceView.
         remoteSurfaceView.setVisibility(View.VISIBLE);
     }
-    private void setupLocalVideo() {
-//        FrameLayout container = findViewById(R.id.local_video_view_container);
-        // Create a SurfaceView object and add it as a child to the FrameLayout.
-        localSurfaceView = new SurfaceView(getBaseContext());
-//        container.addView(localSurfaceView);
-        // Call setupLocalVideo with a VideoCanvas having uid set to 0.
-        agoraEngine.setupLocalVideo(new VideoCanvas(localSurfaceView, VideoCanvas.RENDER_MODE_HIDDEN, 0));
-    }
-    public void joinChannel(View view) {
+
+
+    public void joinChannel() {
         if (checkSelfPermission()) {
             ChannelMediaOptions options = new ChannelMediaOptions();
-
             // For a Video call, set the channel profile as COMMUNICATION.
             options.channelProfile = Constants.CHANNEL_PROFILE_COMMUNICATION;
             // Set the client role as BROADCASTER or AUDIENCE according to the scenario.
@@ -159,9 +196,11 @@ public class AppActivity extends CocosActivity {
     }
     public void leaveChannel(View view) {
         if (!isJoined) {
+            Log.d("AppActivity", "leaveChannel: Join a channel first");
             showMessage("Join a channel first");
         } else {
             agoraEngine.leaveChannel();
+            Log.d("AppActivity", "leaveChannel: You Left the Channel");
             showMessage("You left the channel");
             // Stop remote video rendering.
             if (remoteSurfaceView != null) remoteSurfaceView.setVisibility(View.GONE);
@@ -175,6 +214,7 @@ public class AppActivity extends CocosActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+//        setContentView(appActivity.getSurfaceView());
         // DO OTHER INITIALIZATION BELOW
         SDKWrapper.shared().init(this);
         appActivity = this;
@@ -182,6 +222,7 @@ public class AppActivity extends CocosActivity {
             ActivityCompat.requestPermissions(this, REQUESTED_PERMISSIONS, PERMISSION_REQ_ID);
         }
         setupVideoSDKEngine();
+
     }
 
     @Override
@@ -199,6 +240,12 @@ public class AppActivity extends CocosActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        agoraEngine.stopPreview();
+        agoraEngine.leaveChannel();
+        new Thread(() -> {
+            RtcEngine.destroy();
+            agoraEngine = null;
+        }).start();
         // Workaround in https://stackoverflow.com/questions/16283079/re-launch-of-activity-on-home-button-but-only-the-first-time/16447508
         if (!isTaskRoot()) {
             return;
@@ -258,6 +305,7 @@ public class AppActivity extends CocosActivity {
     protected void onStart() {
         SDKWrapper.shared().onStart();
         super.onStart();
+        appActivity.joinChannel();
     }
 
     @Override
@@ -268,11 +316,11 @@ public class AppActivity extends CocosActivity {
 
     private static void agoraCallFromCocosToJoinChannel(){
         Log.d("AppActivity", "agoraCallFromCocos: Call Received from Cocos to Join Call");
-        appActivity.joinChannel(appActivity.remoteSurfaceView);
+
     }
 
     private static void agoraCallFromCocosToLeaveChannel(){
         Log.d("AppActivity", "agoraCallFromCocosToLeaveChannel: Call Received from Cocos to Leave Call");
-        appActivity.leaveChannel(appActivity.remoteSurfaceView);
+        appActivity.leaveChannel(appActivity.getSurfaceView());
     }
 }
